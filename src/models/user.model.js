@@ -69,11 +69,11 @@ userSchema.methods.generateAccessToken=function(){
     expiresIn:process.env.ACCESS_TOKEN_EXPIRY
   })
 }
-userSchema.methods.generateRefreshToken=function(){
+userSchema.methods.generateRefereshToken=function(){
   return jwt.sign({
     _id:this._id
-  },process.env.REFRESH_TOKEN_SECRET,{
-    expiresIn:process.env.REFRESH_TOKEN_EXPIRY
+  },process.env.REFERESH_TOKEN_SECRET,{
+    expiresIn:process.env.REFERESH_TOKEN_EXPIRY
   })
 }
 
