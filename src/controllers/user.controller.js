@@ -5,15 +5,15 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
-const generateAccessAndRefereshTokens = async (userId) => {
+const generateAccessAndRefreshTokens = async (userId) => {
   try {
     const user = await User.findOne(userId);
     const accessToken = user.generateAccessToken();
-    const refereshToken = user.generateRefereshToken();
+    const refreshToken = user.generateRefreshToken();
 
-    user.refereshToken = refereshToken;
+    user.refreshToken = refreshToken;
     await user.save({ validateBeforeSave: false });
-    return { accessToken, refereshToken };
+    return { accessToken, refreshToken };
   } catch (error) {
     throw new ApiError(
       500,
@@ -90,16 +90,17 @@ const registerUser = asyncHandler(async (req, res) => {
 });
 
 const loginUser = asyncHandler(async (req, res) => {
-  //req body data
-  //username or email
+  // req body -> data
+  // username or email
   //find the user
   //password check
-  //access and refresh token
+  //access and referesh token
   //send cookie
 
   const { email, userName, password } = req.body;
-  if (!email || !userName) {
-    throw new ApiError(400, "email or userName is required");
+
+  if (!userName && !email) {
+    throw new ApiError(400, "username or email is required");
   }
 
   const user = await User.findOne({
@@ -109,12 +110,14 @@ const loginUser = asyncHandler(async (req, res) => {
   if (!user) {
     throw new ApiError(404, "User does not exist");
   }
-  const isPasswordValid = user.isPasswordCorrect(password);
+
+  const isPasswordValid = await user.isPasswordCorrect(password);
+
   if (!isPasswordValid) {
-    throw new ApiError(401, "Invalid User credentials");
+    throw new ApiError(401, "Invalid user credentials");
   }
 
-  const { accessToken, refereshToken } = generateAccessAndRefereshTokens(
+  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
     user._id
   );
 
@@ -126,19 +129,20 @@ const loginUser = asyncHandler(async (req, res) => {
     httpOnly: true,
     secure: true,
   };
+
   return res
     .status(200)
     .cookie("accessToken", accessToken, options)
-    .cookie("refereshToken", refereshToken, options)
+    .cookie("refreshToken", refreshToken, options)
     .json(
       new ApiResponse(
         200,
         {
           user: loggedInUser,
           accessToken,
-          refereshToken,
+          refreshToken,
         },
-        "user loggedIn successfully"
+        "User logged In Successfully"
       )
     );
 });
@@ -148,7 +152,7 @@ const logoutUser = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(
     req.user._id,
     {
-      $set: { refereshToken: undefined },
+      $set: { refreshToken: undefined },
     },
     { new: true }
   );
@@ -159,7 +163,7 @@ const logoutUser = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .clearCookie("accessToken", options)
-    .clearCookie("refereshToken", options)
+    .clearCookie("refreshToken", options)
     .json(new ApiResponse(200, {}, "User logged out successfully"));
 });
 
